@@ -15,12 +15,15 @@ namespace SteamQueryCLI
         private static List<ServerState> _serverResponses = new List<ServerState>();
         private bool _listPlugins;
         private bool _displayIpPort;
-
+        private bool _help;
+        
         public ServerQueryCLI(string[] args)
         {
             LoadServers();
             var count = _servers.Count;
             ProcessArgs(args);
+            if(_help)
+                return;
             if (_servers.Count != count)
                 SaveServers();
 
@@ -83,14 +86,7 @@ namespace SteamQueryCLI
         {
             if (args.Length == 0 && !File.Exists(_fileName))
             {
-                Console.WriteLine("usage:\n" +
-                                  "ServerQueryCLI.exe /+ /- /name\n" +
-                                  "/+ add a server /+127.0.0.1:27000:Name\n" +
-                                  "/- remove server /-127.0.0.1:2700\n" +
-                                  "/i display ip:port of each server\n" +
-                                  "/r display all rocketmod plugins\n" +
-                                  "/s partialPlayerName lists names and servers of a Player's \n" +
-                                  "   partial name (must have 3 letters)\n \n \n");
+                PrintHelp();
                 return;
             }
 
@@ -158,8 +154,28 @@ namespace SteamQueryCLI
                     case "s":
                         searchArg = true;
                         break;
+                    
+                    case "?":
+                        PrintHelp();
+                        _help = true;
+                        return;
                 }
             }
+        }
+
+        private static void PrintHelp()
+        {
+            Console.WriteLine("usage:\n" +
+                              "ServerQueryCLI.exe /+ /- /name\n" +
+                              "/+ add a server /+127.0.0.1:27000:Name\n" +
+                              "/- remove server /-127.0.0.1:2700\n" +
+                              "/i display ip:port of each server\n" +
+                              "/r display all rocketmod plugins\n" +
+                              "/s partialPlayerName lists names and servers of a Player's \n" +
+                              "   partial name (must have 3 letters)\n" +
+                              "/? displays this help" +
+                              "\n \n \n");
+            return;
         }
 
         private void RemoveServer(string ip, ushort port)
