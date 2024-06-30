@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using Newtonsoft.Json;
 
@@ -10,11 +11,11 @@ namespace SteamQueryCLI
         private string _fileName = "servers.json";
         private int _serverQueryCount;
         private HashSet<ServerData> _servers;
-        private string _search = "";
-        private List<string> _searchResults = new List<string>();
+        private Dictionary<string, List<string>> _searchResults = new Dictionary<string, List<string>>();
         private static List<ServerState> _serverResponses = new List<ServerState>();
-        private bool plugins;
-        
+        private bool _listPlugins;
+        private bool _displayIpPort;
+
         public ServerQueryCLI(string[] args)
         {
             LoadServers();
@@ -30,15 +31,23 @@ namespace SteamQueryCLI
 
             WaitForServerResponses();
 
-            if (_search.Length == 0)
+            PrintSearchResults();
+        }
+
+        private void PrintSearchResults()
+        {
+            if (_searchResults.Count == 0)
                 return;
 
-            Console.WriteLine($"\n\n** Search results for '{_search}': **");
-            if (_searchResults.Count == 0)
-                Console.WriteLine($"{_search} is not online.");
-            foreach (var result in _searchResults)
+            foreach (var s in _searchResults.Keys)
             {
-                Console.WriteLine(result);
+                Console.WriteLine($"\n\n** Search results for '{s}': **");
+                if (_searchResults[s].Count == 0)
+                    Console.WriteLine($"{s} is not online.");
+                foreach (var result in _searchResults[s])
+                {
+                    Console.WriteLine(result);
+                }
             }
         }
 
@@ -72,61 +81,97 @@ namespace SteamQueryCLI
 
         private void ProcessArgs(string[] args)
         {
-            if (args.Length == 0)
+            if (args.Length == 0 && !File.Exists(_fileName))
             {
                 Console.WriteLine("usage:\n" +
                                   "ServerQueryCLI.exe /+ /- /name\n" +
                                   "/+ add a server /+127.0.0.1:27000:Name\n" +
                                   "/- remove server /-127.0.0.1:2700\n" +
-                                  "/partialPlayerName lists names and servers of a Player's partial name\n \n \n");
+                                  "/i display ip:port of each server\n" +
+                                  "/r display all rocketmod plugins\n" +
+                                  "/s partialPlayerName lists names and servers of a Player's \n" +
+                                  "   partial name (must have 3 letters)\n \n \n");
                 return;
             }
 
-            var c = args[0].Substring(0, 1);
-            if (c == "/")
+            string c = "";
+            bool searchArg = false;
+            foreach (var arg in args)
             {
-                c = args[0].Substring(1, 1);
-            }
-            else
-            {
-                return;
-            }
-
-           
-            if (c == "+" || c == "-")
-            {
-                var data = args[0].Substring(2).Split(':');
-                var ip = data[0];
-                var port = UInt16.Parse(data[1]);
-                string name = "";
-                if (data.Length == 3)
+                if (searchArg)
                 {
-                    name = data[2];
-                }
-
-                if (data.Length < 3)
-                    return;
-
-                foreach (var server in _servers)
-                {
-                    if (server.ip.Equals(ip) && server.port.Equals(port))
+                    if (arg.Length < 3)
                     {
-                        if (c == "-")
-                            _servers.Remove(server);
-                        return;
+                        Console.WriteLine("You must supply at least 3 letters for a search.\n");
+                        continue;
                     }
+
+                    var lc = arg.ToLower();
+                    _searchResults.Add(lc, new List<string>());
+
+                    // _search.Add(arg.ToLower());
+                    searchArg = false;
+                    continue;
                 }
 
-                _servers.Add(new ServerData(name, ip, port));
-                return;
-            }
+                c = arg.Substring(0, 1);
+                if (c == "/")
+                {
+                    c = arg.Substring(1, 1).ToLower();
+                }
+                else
+                    continue;
 
-            if (c == "R")
+                switch (c)
+                {
+                    case "+":
+                    case "-":
+                        var data = arg.Substring(2).Split(':');
+                        var ip = data[0];
+                        var port = UInt16.Parse(data[1]);
+                        string name = "";
+                        if (data.Length == 3)
+                        {
+                            name = data[2];
+                        }
+
+                        if (data.Length < 3)
+                            continue;
+
+                        if (c == "-")
+                        {
+                            RemoveServer(ip, port);
+                            continue;
+                        }
+
+                        _servers.Add(new ServerData(name, ip, port));
+                        continue;
+
+                    case "i":
+                        _displayIpPort = true;
+                        continue;
+                    
+                    case "r":
+                        _listPlugins = true;
+                        continue;
+
+                    case "s":
+                        searchArg = true;
+                        break;
+                }
+            }
+        }
+
+        private void RemoveServer(string ip, ushort port)
+        {
+            foreach (var server in _servers)
             {
-                plugins = true;
-                return;
-            }            
-            _search = args[0].Substring(1).ToLower();
+                if (server.ip.Equals(ip) && server.port.Equals(port))
+                {
+                    _servers.Remove(server);
+                    return;
+                }
+            }
         }
 
 
@@ -151,7 +196,8 @@ namespace SteamQueryCLI
         private void PrintServer(ServerState serverState)
         {
             Console.WriteLine($"{serverState.ServerName} -{serverState.State}- {serverState.PlayersToMax}");
-            // Console.WriteLine(serverState.State);
+            if(_displayIpPort)
+                Console.WriteLine($"{serverState.Server.ip}:{serverState.Server.port}");
             if (serverState.players.Count == 0 && serverState.State.Equals("Online"))
             {
                 Console.WriteLine("*** No Players online ***");
@@ -159,13 +205,18 @@ namespace SteamQueryCLI
 
             foreach (var player in serverState.players)
             {
-                if (_search != "" && player.name.ToLower().Contains(_search))
-                    _searchResults.Add($"{player.name} in {serverState.ServerName}");
+                foreach (var s in _searchResults.Keys)
+                {
+                    if (player.name.ToLower().Contains(s))
+                    {
+                        _searchResults[s].Add($"{player.name} in {serverState.ServerName} for {player.time}");
+                    }
+                }
 
                 Console.WriteLine($"{player.number} - {player.name} - {player.time}");
             }
 
-            if(plugins)
+            if (_listPlugins)
                 Console.WriteLine(serverState.ServerPlugins);
             Console.WriteLine("\n\n");
         }

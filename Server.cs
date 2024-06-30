@@ -46,6 +46,7 @@ namespace SteamQueryCLI
             serverState.State = "Online";
             serverState.ServerName = server.Information.ServerName;
             serverState.PlayersToMax = $"{server.Players.Count}/{server.Information.MaxPlayers}";
+            serverState.Server = serverData;
             foreach (var rule in server.Rules)
             {
                 if(rule.Name.Equals("rocketplugins"))

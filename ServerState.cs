@@ -9,6 +9,7 @@ namespace SteamQueryCLI
         public string State;
         public string PlayersToMax;
         public string ServerPlugins;
+        public ServerData Server;
         
         public ServerState(string serverName, List<PlayerData> players, string state, string playersToMax)
         {
