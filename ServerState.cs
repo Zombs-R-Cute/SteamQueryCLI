@@ -16,7 +16,7 @@ namespace SteamQueryCLI
             ServerName = serverName;
             this.players = players;
             State = state;
-            this.PlayersToMax = playersToMax;
+            PlayersToMax = playersToMax;
         }
         
     }

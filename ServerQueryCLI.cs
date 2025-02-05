@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
 using Newtonsoft.Json;
 
@@ -35,6 +34,13 @@ namespace SteamQueryCLI
             WaitForServerResponses();
 
             PrintSearchResults();
+            PrintCurrentTime();
+        }
+
+        private void PrintCurrentTime()
+        {
+            DateTime currentTime = DateTime.Now;
+            Console.Out.WriteLine($"\n\nScanned at {currentTime.ToString("HH:mm")}");
         }
 
         private void PrintSearchResults()
@@ -58,7 +64,7 @@ namespace SteamQueryCLI
         {
             foreach (var server in _servers)
             {
-                Server.GetServerData(server, ServerCallback);
+                ServerRequest.GetServerData(server, ServerCallback);
                 _serverQueryCount++;
             }
         }
@@ -131,7 +137,7 @@ namespace SteamQueryCLI
                             name = data[2];
                         }
 
-                        if (data.Length < 3)
+                        if (data.Length < 2)
                             continue;
 
                         if (c == "-")
@@ -150,6 +156,10 @@ namespace SteamQueryCLI
                     case "r":
                         _listPlugins = true;
                         continue;
+                    
+                    case "m":
+                        
+                        break;
 
                     case "s":
                         searchArg = true;
